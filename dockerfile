@@ -3,18 +3,21 @@ COPY src/ /var/www/html/
 
 RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 COPY config/qrscan.ini "$PHP_INI_DIR/conf.d/"
-
-
-# Update apt
-RUN apt-get update
+COPY script/qrscan_opencv.py /var/www/
 
 # Get Ubuntu packages
-RUN apt-get install -y \
+RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
-    libclang-dev
+    libclang-dev \
+    zbar-tools \
+    python3-pip \
+    libgl1
+
+RUN pip3 install opencv-python
 
 # Create home folders
+RUN chown www-data:www-data /var/www/qrscan_opencv.py
 RUN mkdir /var/www/.cargo && chown www-data:www-data /var/www/.cargo 
 RUN mkdir /var/www/.rustup && chown www-data:www-data /var/www/.rustup
 RUN touch /var/www/.profile && chown www-data:www-data /var/www/.profile
