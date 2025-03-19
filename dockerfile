@@ -12,9 +12,10 @@ RUN apt-get update && apt-get install -y \
     libclang-dev \
     zbar-tools \
     python3-pip \
-    libgl1
+    libgl1 \
+    python3-opencv
 
-RUN pip3 install opencv-python
+#RUN pip3 install opencv-python
 
 # Create home folders
 RUN chown www-data:www-data /var/www/qrscan_opencv.py
