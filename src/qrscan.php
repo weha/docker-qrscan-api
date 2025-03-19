@@ -76,23 +76,6 @@ if ($content_length > $max_file_size) {
 $content_type = $_SERVER['CONTENT_TYPE'] ?? '';
 fwrite($fh, $logprefix . 'Content-Type: ' . $content_type . $logsuffix);
 
-// More flexible content type matching
-if (!preg_match('/^image\/(jpeg|png|gif)$/i', $content_type)) {
-    // Try to get content type from file if header is not set
-    $finfo = finfo_open(FILEINFO_MIME_TYPE);
-    $mime_type = finfo_file($finfo, $file);
-    finfo_close($finfo);
-    
-    fwrite($fh, $logprefix . 'MIME Type from file: ' . $mime_type . $logsuffix);
-    
-    if (!preg_match('/^image\/(jpeg|png|gif)$/i', $mime_type)) {
-        fwrite($fh, $logprefix . 'Error: Unsupported media type - ' . $mime_type . $logsuffix);
-        header('HTTP/1.1 415 Unsupported Media Type');
-        echo json_encode(['status' => 'error', 'value' => [], 'message' => 'Only JPEG, PNG and GIF images are supported']);
-        exit;
-    }
-}
-
 fwrite($fh, $logprefix . 'Starting QR scan'.$logsuffix);
 $tmp_dir = sys_get_temp_dir().'/';
 $filename = uniqid(mt_rand(), true) . '.jpg';
@@ -112,6 +95,24 @@ if (file_put_contents($file, $input) === false) {
     echo json_encode(['status' => 'error', 'value' => [], 'message' => 'Failed to write temporary file']);
     if (file_exists($file)) unlink($file);
     exit;
+}
+
+// Validate content type
+if (!preg_match('/^image\/(jpeg|png|gif)$/i', $content_type)) {
+    // Try to get content type from file if header is not set
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $mime_type = finfo_file($finfo, $file);
+    finfo_close($finfo);
+    
+    fwrite($fh, $logprefix . 'MIME Type from file: ' . $mime_type . $logsuffix);
+    
+    if (!preg_match('/^image\/(jpeg|png|gif)$/i', $mime_type)) {
+        fwrite($fh, $logprefix . 'Error: Unsupported media type - ' . $mime_type . $logsuffix);
+        header('HTTP/1.1 415 Unsupported Media Type');
+        echo json_encode(['status' => 'error', 'value' => [], 'message' => 'Only JPEG, PNG and GIF images are supported']);
+        unlink($file);
+        exit;
+    }
 }
 
 // Validate that the file is actually an image
