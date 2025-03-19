@@ -18,7 +18,7 @@ function qrscan($file) {
     fwrite($fh, $logprefix.'QR scan'.$logsuffix);
     exec('qrscan '.$file,$output,$result);
     $status = 'error';
-    if ($result == 0)
+    if ($result == 0 && count($output) > 0)
         $status = 'ok';
     return array('status' => $status,'value' => $output,'with' => 'qrscan');
 }
@@ -28,7 +28,7 @@ function opencv($file) {
     fwrite($fh, $logprefix.'OpenCV'.$logsuffix);
     exec('python3 /var/www/qrscan_opencv.py '.$file,$output,$result);
     $status = 'error';
-    if ($result == 0)
+    if ($result == 0 && count($output) > 0)
         $status = 'ok';    
     return array('status' => $status,'value' => $output,'with' => 'opencv');
 }
@@ -41,28 +41,85 @@ function zbarimg($file) {
         $output[$k] = str_replace('QR-Code:', '', $output[$k]);
     }
     $status = 'error';
-    if ($result == 0)
+    if ($result == 0 && count($output) > 0)
         $status = 'ok';    
     return array('status' => $status,'value' => $output,'with' => 'zbarimg');
 }
 
 header('Content-Type: application/json; charset=utf-8');
-header("Acess-Control-Allow-Origin: *");
-header("Acess-Control-Allow-Methods: POST");
-header("Acess-Control-Allow-Headers: Acess-Control-Allow-Headers,Content-Type,Acess-Control-Allow-Methods, Authorization");
+header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Methods: POST");
+header("Access-Control-Allow-Headers: Access-Control-Allow-Headers,Content-Type,Access-Control-Allow-Methods, Authorization");
 
+// Maximum file size (5MB)
+$max_file_size = 256 * 1024 * 1024;
+
+// Validate request method
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    header('HTTP/1.1 405 Method Not Allowed');
+    echo json_encode(['status' => 'error', ,'value' => '', 'message' => 'Only POST method is allowed']);
+    exit;
+}
+
+// Validate content length
+$content_length = $_SERVER['CONTENT_LENGTH'] ?? 0;
+if ($content_length > $max_file_size) {
+    header('HTTP/1.1 413 Payload Too Large');
+    echo json_encode(['status' => 'error', ,'value' => '', 'message' => 'File too large. Maximum size is 5MB']);
+    exit;
+}
+
+// Validate content type
+$content_type = $_SERVER['CONTENT_TYPE'] ?? '';
+if (!preg_match('/^image\/(jpeg|png|gif)$/', $content_type)) {
+    header('HTTP/1.1 415 Unsupported Media Type');
+    echo json_encode(['status' => 'error', ,'value' => '', 'message' => 'Only JPEG, PNG and GIF images are supported']);
+    exit;
+}
 
 fwrite($fh, $logprefix . 'Starting QR scan'.$logsuffix);
 $tmp_dir = sys_get_temp_dir().'/';
 $filename = uniqid(mt_rand(), true) . '.jpg';
 $file = $tmp_dir . $filename;
-file_put_contents($file, file_get_contents("php://input"));
+
+$input = file_get_contents("php://input");
+if ($input === false) {
+    header('HTTP/1.1 400 Bad Request');
+    echo json_encode(['status' => 'error', ,'value' => '', 'message' => 'Failed to read input']);
+    exit;
+}
+
+if (file_put_contents($file, $input) === false) {
+    header('HTTP/1.1 500 Internal Server Error');
+    echo json_encode(['status' => 'error', ,'value' => '', 'message' => 'Failed to write temporary file']);
+    if (file_exists($file)) unlink($file);
+    exit;
+}
+
+// Validate that the file is actually an image
+if (!getimagesize($file)) {
+    header('HTTP/1.1 400 Bad Request');
+    echo json_encode(['status' => 'error', ,'value' => '', 'message' => 'Invalid image file']);
+    unlink($file);
+    exit;
+}
 
 $result = qrscan($file);
-if ($result['status'] == 'error') $result = opencv($file);
-if ($result['status'] == 'error') $result = zbarimg($file);
+if ($result['status'] == 'error') 
+    $result = opencv($file);
+if ($result['status'] == 'error') 
+    $result = zbarimg($file);
 
-if ($result['status'] == 'ok') update_stats($result['with']);
+if ($result['status'] == 'ok') 
+    update_stats($result['with']);
+else {
+    header('HTTP/1.1 422 Unprocessable Entity');
+    echo json_encode(['status' => 'error', ,'value' => '', 'message' => 'Unprocessable Entity']);
+}
 
 echo json_encode($result);
-unlink($file);
+
+// Clean up temporary file
+if (file_exists($file)) {
+    unlink($file);
+}
