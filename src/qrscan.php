@@ -130,15 +130,15 @@ if ($result['status'] == 'error')
 if ($result['status'] == 'error') 
     $result = zbarimg($file);
 
-if ($result['status'] == 'ok') 
+if ($result['status'] == 'ok')  {
     update_stats($result['with']);
+    echo json_encode($result);
+}
 else {
     fwrite($fh, $logprefix . 'Error: Failed to process QR code with all methods' . $logsuffix);
     header('HTTP/1.1 422 Unprocessable Entity');
     echo json_encode(['status' => 'error', 'value' => [], 'message' => 'Unprocessable Entity']);
 }
-
-echo json_encode($result);
 
 // Clean up temporary file
 if (file_exists($file)) {

@@ -13,7 +13,8 @@ RUN apt-get update && apt-get install -y \
     zbar-tools \
     python3-pip \
     libgl1 \
-    python3-opencv
+    python3-opencv \
+    nano
 
 #RUN pip3 install opencv-python
 
