@@ -9,11 +9,11 @@ img = cv2.imread(filename, 0)# Zero means grayscale
 img_origin = cv2.imread(filename)
 
 # initialize the cv2 QRCode detector
-detector = cv2.QRCodeDetector()
+detector = cv2.QRCodeDetectorAruco()
 
 # detect and decode
 data, bbox, straight_qrcode = detector.detectAndDecode(img)
 
 # if there is a QR code
-if bbox is not None:
+if bbox is not None and data:
     print(f"{data}")

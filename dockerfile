@@ -13,10 +13,10 @@ RUN apt-get update && apt-get install -y \
     zbar-tools \
     python3-pip \
     libgl1 \
-    python3-opencv \
     nano
 
-#RUN pip3 install opencv-python
+# Debian's python3-opencv is built without QUIRC and cannot decode QR codes
+RUN pip3 install --break-system-packages opencv-python-headless
 
 # Create home folders
 RUN chown www-data:www-data /var/www/qrscan_opencv.py

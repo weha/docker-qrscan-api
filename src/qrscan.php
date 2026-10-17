@@ -116,13 +116,18 @@ if (!preg_match('/^image\/(jpeg|png|gif)$/i', $content_type)) {
 }
 
 // Validate that the file is actually an image
-if (!getimagesize($file)) {
+$image_info = getimagesize($file);
+if (!$image_info) {
     fwrite($fh, $logprefix . 'Error: Invalid image file' . $logsuffix);
     header('HTTP/1.1 400 Bad Request');
     echo json_encode(['status' => 'error', 'value' => [], 'message' => 'Invalid image file']);
     unlink($file);
     exit;
 }
+
+// qrscan picks its decoder from the extension, so give the file the real one
+$real_file = $tmp_dir . pathinfo($filename, PATHINFO_FILENAME) . image_type_to_extension($image_info[2]);
+if ($real_file != $file && rename($file, $real_file)) $file = $real_file;
 
 $result = qrscan($file);
 if ($result['status'] == 'error') 
