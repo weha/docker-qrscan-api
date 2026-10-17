@@ -4,6 +4,8 @@ COPY src/ /var/www/html/
 RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 COPY config/qrscan.ini "$PHP_INI_DIR/conf.d/"
 COPY script/qrscan_opencv.py /var/www/
+COPY script/start.sh /usr/local/bin/qrscan-start
+RUN chmod 755 /usr/local/bin/qrscan-start
 
 # Get Ubuntu packages
 RUN apt-get update && apt-get install -y \
@@ -13,10 +15,11 @@ RUN apt-get update && apt-get install -y \
     zbar-tools \
     python3-pip \
     libgl1 \
-    python3-opencv \
-    nano
+    nano \
+    socat
 
-#RUN pip3 install opencv-python
+# Debian's python3-opencv is built without QUIRC and cannot decode QR codes
+RUN pip3 install --break-system-packages opencv-python-headless
 
 # Create home folders
 RUN chown www-data:www-data /var/www/qrscan_opencv.py
@@ -24,6 +27,7 @@ RUN mkdir /var/www/.cargo && chown www-data:www-data /var/www/.cargo
 RUN mkdir /var/www/.rustup && chown www-data:www-data /var/www/.rustup
 RUN touch /var/www/.profile && chown www-data:www-data /var/www/.profile
 RUN touch /var/www/.bashrc && chown www-data:www-data /var/www/.bashrc
+RUN mkdir /run/qrscan && chown www-data:www-data /run/qrscan
 
 # Change user to www-data
 USER 'www-data'
@@ -39,4 +43,4 @@ RUN echo 'source $HOME/.cargo/env' >> $HOME/.bashrc
 #ENV PORT=4567
 EXPOSE 80
 
-#CMD [ "php", "./your-script.php" ]
+CMD [ "qrscan-start" ]
